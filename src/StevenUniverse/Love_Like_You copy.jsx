@@ -14,7 +14,7 @@ function Love_Like_You() {
     { text: 'I could do about anything', start: 24.8, end: 27.1 },
     { text: 'I could even learn how to love like you', start: 27.2, end: 32.3 },
     { text: '', start: 32.3, end: 40.7 },
-    { text: 'Love like you', start: 40.7, end: 44.8 },
+    { text: 'Love like you', start: 40.8, end: 44.8 },
     { text: '', start: 44.9, end: 54.0 },
     { text: 'I always thought I might be bad', start: 54.0, end: 57.3 },
     { text: "Now I'm sure that it's true", start: 57.4, end: 60.4 },
@@ -29,7 +29,7 @@ function Love_Like_You() {
     { text: 'I would do about anything', start: 86.8, end: 89.0 },
     { text: 'I would even learn how to love', start: 89.1, end: 93.1 },
     // --- NUEVAS LÍNEAS (FINAL DE LA CANCIÓN) ---
-    { text: '', start: 93.2, end: 93.1 },
+    { text: '', start: 93.2, end: 97.1 },
     { text: 'When I see the way you look', start: 97.2, end: 100.9 },
     { text: 'Shaken by how long it took', start: 101.0, end: 103.8 },
     { text: 'I could do about anything', start: 103.9, end: 105.9 },
@@ -42,7 +42,7 @@ function Love_Like_You() {
     { text: 'Love like you', start: 114.4, end: 116.8 }, // Último verso
     { text: '', start: 116.9, end: 119.9 }, // Pausa antes del último "Love like you"
     { text: 'Love me like you', start: 120.0, end: 123.6 }, // Final
-    { text: '', start: 123.7, end: 200.0 }, // Pausa antes del último "Love like you"
+    { text: '', start: 123.7, end: 140.0 }, // Pausa antes del último "Love like you"
   ];
 
   const [currentLine, setCurrentLine] = useState(0);
@@ -55,10 +55,12 @@ function Love_Like_You() {
   const [hasStarted, setHasStarted] = useState(false);
   const audioRef = useRef(null);
   const timeoutRef = useRef(null);
+  const [showCongratulations, setShowCongratulations] = useState(false);
 
-  // Efecto para manejar la reproducción cuando cambia la línea actual
+  // Efecto para manejar la reproducción cuando cambia la
   useEffect(() => {
-    if (hasStarted) {
+    if (hasStarted && audioRef.current) {
+      // ← Añadí verificación de audioRef.current
       // Precargar el audio si es la primera vez
       if (currentLine === 0 && !audioRef.current.currentTime) {
         audioRef.current.src = audioFile;
@@ -74,7 +76,6 @@ function Love_Like_You() {
     };
   }, [currentLine, hasStarted]);
 
-  // Reproduce el segmento de la línea actual
   const playCurrentLine = () => {
     if (!audioRef.current || currentLine >= lyrics.length) return;
 
@@ -90,19 +91,46 @@ function Love_Like_You() {
     audioRef.current.play();
     setIsPlaying(true);
 
-    // Duración de la línea actual (en ms)
     const lineDuration = (line.end - line.start) * 1000;
 
-    // Configurar un solo timeout para manejar el avance
-    timeoutRef.current = setTimeout(() => {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    if (!audioRef.current || currentLine >= lyrics.length) return;
 
-      // Avanzar automáticamente si es línea vacía
-      if (line.text.trim() === '' && currentLine < lyrics.length - 1) {
-        setCurrentLine(prev => prev + 1);
-      }
-    }, lineDuration);
+    // Verificar si es la última línea
+    if (currentLine === lyrics.length - 1) {
+      const lineDuration = (line.end - line.start) * 1000;
+      timeoutRef.current = setTimeout(() => {
+        setShowCongratulations(true);
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }, lineDuration);
+      return;
+    }
+
+    // LÓGICA ESPECIAL SOLO PARA LA PRIMERA LÍNEA (0.0-6.5s)
+    if (currentLine === 0 && line.text.trim() === '') {
+      timeoutRef.current = setTimeout(() => {
+        // No pausar, solo avanzar inmediatamente
+        setCurrentLine(1);
+        playCurrentLine(); // Reproducir línea 1 sin delay
+      }, lineDuration);
+    }
+    // LÓGICA ORIGINAL PARA TODAS LAS DEMÁS LÍNEAS (COMO TU FUNCIÓN)
+    else {
+      timeoutRef.current = setTimeout(() => {
+        audioRef.current.pause();
+        setIsPlaying(false);
+
+        timeoutRef.current = setTimeout(() => {
+          audioRef.current.pause();
+          setIsPlaying(false);
+
+          if (line.text.trim() === '' && currentLine < lyrics.length - 1) {
+            setCurrentLine(prev => prev + 1);
+            playCurrentLine();
+          }
+        }, lineDuration);
+      }, lineDuration);
+    }
   };
 
   const handleMistake = () => {
@@ -198,7 +226,11 @@ function Love_Like_You() {
     <div className='love-like-you-container'>
       <h1>Love Like You</h1>
       <h2>Practice Typing the Lyrics</h2>
-
+      {showCongratulations && (
+        <div className='congratulations-message'>
+          ¡Congratulations! You completed the song!
+        </div>
+      )}
       {!hasStarted ? (
         <div className='start-screen'>
           <button
